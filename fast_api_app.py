@@ -42,7 +42,7 @@ def sign_up(user: User):
             detail="User with this Email already exists",
         )
     app.users[user.email] = user
-    return {"message": "User registered successfully"}
+    return {"message": f"User {user.email} registered successfully"}
 
 # Helper function to create a session in which we can store state about the user
 def create_session(user_email: str):
@@ -65,7 +65,7 @@ def authenticate_user(credentials: HTTPBasicCredentials = Depends(security)):
 @app.post("/login")
 def login(user: User = Depends(authenticate_user)):
     session_id = create_session(user.email)
-    return {"message": "Logged in successfully", "session_id": session_id}
+    return {"message": f"User {user.email} Logged in successfully", "session_id": session_id}
 
 # Helper to get user from session_id
 def get_authenticated_user_from_session_id(request: Request):
@@ -88,11 +88,13 @@ def prefs(site: str, user: User = Depends(get_authenticated_user_from_session_id
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authenticated")
     elif user.email not in app.user_consent_preferences:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User does not have preferences yet")
-    elif site not in app.user_consent_preferences[user.email]:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User does not have preferences for this site") 
-    else :
-        return app.user_consent_preferences[user.email][site]
-    
+    else:
+        if site not in app.user_consent_preferences[user.email]:
+            site = 'default' if 'default' in app.user_consent_preferences[user.email] else None
+        if site is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User {user.email} does not have preferences for this site or default") 
+        else:
+            return app.user_consent_preferences[user.email][site]
 # Endpoint to set site preferences
 @app.post("/preferences/{site}")
 def prefs(site: str, consent: ConsentPreferences, user: User = Depends(get_authenticated_user_from_session_id)):
@@ -102,4 +104,4 @@ def prefs(site: str, consent: ConsentPreferences, user: User = Depends(get_authe
         if user.email not in app.user_consent_preferences:
             app.user_consent_preferences[user.email] = {}
         app.user_consent_preferences[user.email][site] = consent
-        return {"message": "Set preferences successfully"}
+        return {"message": f"Set preferences successfully for user {user.email} for site {site}"}
