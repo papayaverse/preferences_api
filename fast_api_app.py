@@ -19,8 +19,8 @@ class User(BaseModel):
     email: str
     password: str
 
-app.users = {}
-app.user_consent_preferences = {}
+app.users = {'ram@papayaverse.com' : {'firstname': 'Ram', 'lastname': 'Kripa', 'email': 'ram@papayaverse.com', 'password': 'password'}}
+app.user_consent_preferences = {'ram@papayaverse.com' : {'default': {'marketing': False, 'performance': True, 'sell_data': True}}}
 
 app.sessions = {}
 
