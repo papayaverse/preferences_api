@@ -70,9 +70,7 @@ def login(user: User = Depends(authenticate_user)):
 # Helper to get user from session_id
 def get_authenticated_user_from_session_id(request: Request):
     session_id = request.cookies.get("session_id")
-    if session_id is None:
-        session_id = str(len(app.sessions) - 1)
-    elif session_id is None or session_id not in app.sessions:
+    if session_id is None or session_id not in app.sessions:
         raise HTTPException(
             status_code=401,
             detail="Invalid session ID",
