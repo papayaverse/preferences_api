@@ -67,6 +67,34 @@ def login(user: User = Depends(authenticate_user)):
     session_id = create_session(user.email)
     return {"message": f"User {user.email} Logged in successfully", "session_id": session_id}
 
+# Get auhtenticated user from session_id or credentials
+def get_authenticated_user(request: Request, credentials: HTTPBasicCredentials = Depends(security)):
+    # Try to get user from session ID in cookies
+    session_id = request.cookies.get("session_id")
+    if session_id and session_id in app.sessions:
+        user_email = app.sessions[session_id]["user_email"]
+        user = app.users.get(user_email)
+        if user:
+            return user
+
+    # Fallback to Authorization header if no valid session ID
+    auth_header = request.headers.get("Authorization")
+    if auth_header:
+        auth_type, auth_credentials = auth_header.split()
+        if auth_type.lower() == "basic":
+            decoded_credentials = base64.b64decode(auth_credentials).decode("utf-8")
+            username, password = decoded_credentials.split(":")
+            user = app.users.get(username)
+            if user and user.password == password:
+                return user
+
+    # Raise an error if neither method succeeded
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid credentials",
+        headers={"WWW-Authenticate": "Basic"},
+    )
+
 # Helper to get user from session_id
 def get_authenticated_user_from_session_id(request: Request):
     session_id = request.cookies.get("session_id")
@@ -81,7 +109,7 @@ def get_authenticated_user_from_session_id(request: Request):
 
 # Endpoint to get site preferences
 @app.get("/preferences/{site}")
-def prefs(site: str, user: User = Depends(get_authenticated_user_from_session_id)):
+def prefs(site: str, user: User = Depends(get_authenticated_user)):
     if user is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authenticated")
     elif user.email not in app.user_consent_preferences:
@@ -95,7 +123,7 @@ def prefs(site: str, user: User = Depends(get_authenticated_user_from_session_id
             return app.user_consent_preferences[user.email][site]
 # Endpoint to set site preferences
 @app.post("/preferences/{site}")
-def prefs(site: str, consent: ConsentPreferences, user: User = Depends(get_authenticated_user_from_session_id)):
+def prefs(site: str, consent: ConsentPreferences, user: User = Depends(get_authenticated_user)):
     if user is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authenticated")
     else :
