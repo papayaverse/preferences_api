@@ -4,6 +4,7 @@ import random
 from fastapi import Request
 from fastapi import Body
 from pydantic import BaseModel
+import base64
 
 app = FastAPI()
 security = HTTPBasic()
