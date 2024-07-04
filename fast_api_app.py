@@ -4,6 +4,7 @@ import random
 from fastapi import Request
 from fastapi import Body
 from pydantic import BaseModel
+from typing import List
 import base64
 
 app = FastAPI()
@@ -20,9 +21,15 @@ class User(BaseModel):
     email: str
     password: str
 
+class CollectedData(BaseModel):
+    url: str
+    title: str
+    timestamp: str
+
 app.users = {'ram@papayaverse.com' : User(firstname='Ram', lastname='Test', email='ram@papayaverse.com', password='password')}
 app.user_consent_preferences = {'ram@papayaverse.com' : {'default': ConsentPreferences(marketing=False, performance=True, sell_data=False)}}
 app.sessions = {}
+app.collected_data = {}
 
 @app.get('/hello')
 def hello():
@@ -117,3 +124,20 @@ def prefs(site: str, consent: ConsentPreferences, credentials: HTTPBasicCredenti
         app.user_consent_preferences[user.email] = {}
     app.user_consent_preferences[user.email][site] = consent
     return {"message": f"Set preferences successfully for user {user.email} for site {site}"}
+
+# Endpoint to collect data
+@app.post("/collect")
+def collect_data(data: List[CollectedData], credentials: HTTPBasicCredentials = Depends(security)):
+    user = authenticate_user(credentials)
+    if user.email not in app.collected_data:
+        app.collected_data[user.email] = []
+    app.collected_data[user.email].extend(data)
+    return {"message": "Data collected successfully"}
+
+# Endpoint to retrieve collected data (for testing purposes)
+@app.get("/data")
+def get_data(credentials: HTTPBasicCredentials = Depends(security)):
+    user = authenticate_user(credentials)
+    if user.email not in app.collected_data:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No data collected for this user")
+    return app.collected_data[user.email]
