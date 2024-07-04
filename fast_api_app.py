@@ -131,7 +131,7 @@ def collect_data(data: List[CollectedData], credentials: HTTPBasicCredentials = 
     user = authenticate_user(credentials)
     if user.email not in app.collected_data:
         app.collected_data[user.email] = []
-    app.collected_data[user.email].extend(data)
+    app.collected_data[user.email] += data
     return {"message": "Data collected successfully"}
 
 # Endpoint to retrieve collected data (for testing purposes)
