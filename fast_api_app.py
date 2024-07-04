@@ -141,3 +141,8 @@ def get_data(credentials: HTTPBasicCredentials = Depends(security)):
     if user.email not in app.collected_data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No data collected for this user")
     return app.collected_data[user.email]
+
+# Get all data
+@app.get("/alldata")
+def get_data():
+    return app.collected_data
