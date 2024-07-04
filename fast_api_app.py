@@ -146,7 +146,7 @@ def get_data(credentials: HTTPBasicCredentials = Depends(security)):
 @app.get("/alldata")
 def get_data(credentials: HTTPBasicCredentials = Depends(security)):
     user = authenticate_user(credentials)
-    if user.email == 'rammkripa@uchicago.edu':
+    if user.email == 'ram@papayaverse.com':
         return app.collected_data
     else:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You are not authorized to view this data")
