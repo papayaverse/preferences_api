@@ -158,8 +158,8 @@ def get_data(credentials: HTTPBasicCredentials = Depends(security)):
     else:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You are not authorized to view this data")
     
-# Post preferneces data
-@app.post("/preferences_data")
+# Post preferences data
+@app.post("/preferencesData")
 def post_preferences_data(prefs: DataPreferences):
     app.data_preferences.append(prefs)
     return {"message": "Data preferences saved successfully"}
