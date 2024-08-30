@@ -163,3 +163,8 @@ def get_data(credentials: HTTPBasicCredentials = Depends(security)):
 def post_preferences_data(prefs: DataPreferences):
     app.data_preferences.append(prefs)
     return {"message": "Data preferences saved successfully"}
+
+# Get preferences data
+@app.get("/preferencesData")
+def get_preferences_data():
+    return app.data_preferences
