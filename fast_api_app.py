@@ -26,10 +26,17 @@ class CollectedData(BaseModel):
     title: str
     timestamp: str
 
+class DataPreferences(BaseModel):
+    statement: str
+    anonymity: str
+    recipient: str
+    purpose: str
+
 app.users = {'ram@papayaverse.com' : User(firstname='Ram', lastname='Test', email='ram@papayaverse.com', password='password')}
 app.user_consent_preferences = {'ram@papayaverse.com' : {'default': ConsentPreferences(marketing=False, performance=True, sell_data=False)}}
 app.sessions = {}
 app.collected_data = {}
+app.data_preferences = []
 
 @app.get('/hello')
 def hello():
@@ -150,3 +157,9 @@ def get_data(credentials: HTTPBasicCredentials = Depends(security)):
         return app.collected_data
     else:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="You are not authorized to view this data")
+    
+# Post preferneces data
+@app.post("/preferences_data")
+def post_preferences_data(prefs: DataPreferences):
+    app.data_preferences.append(prefs)
+    return {"message": "Data preferences saved successfully"}
