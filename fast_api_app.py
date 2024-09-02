@@ -161,6 +161,8 @@ def get_data(credentials: HTTPBasicCredentials = Depends(security)):
 # Post preferences data
 @app.post("/preferencesData")
 def post_preferences_data(prefs: DataPreferences):
+    # convert prefs to dictionary
+    prefs = prefs.model_dump()
     app.data_preferences.append(prefs)
     return {"message": "Data preferences saved successfully"}
 
