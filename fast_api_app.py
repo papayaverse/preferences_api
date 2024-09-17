@@ -3,12 +3,27 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import random
 from fastapi import Request
 from fastapi import Body
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 import base64
 
 app = FastAPI()
 security = HTTPBasic()
+
+origins = [
+    "https://papayaverse.github.io",  # Frontend domain
+    "http://localhost:8000",  # Local development (if applicable)
+    "http://127.0.0.1:8000"  # Local development
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,  # Set to ["*"] to allow all origins, but be careful with security
+    allow_methods=["*"],  # Allow all HTTP methods
+    allow_headers=["*"],  # Allow all headers
+    allow_credentials=True,
+)
 
 class ConsentPreferences(BaseModel):
     marketing: bool
