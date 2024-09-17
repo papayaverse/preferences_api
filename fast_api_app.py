@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 import base64
+import json
 
 app = FastAPI()
 security = HTTPBasic()
@@ -176,12 +177,37 @@ def get_data(credentials: HTTPBasicCredentials = Depends(security)):
 # Post preferences data
 @app.post("/preferencesData")
 def post_preferences_data(prefs: DataPreferences):
-    # convert prefs to dictionary
-    prefs = prefs.model_dump()
-    app.data_preferences.append(prefs)
+    # Convert prefs to a dictionary (use model_dump() if Pydantic v2, dict() if v1)
+    prefs_dict = prefs.model_dump() if hasattr(prefs, 'model_dump') else prefs.dict()
+
+    # Save preferences to a file (append to JSON file)
+    try:
+        with open('preferences.json', 'r+') as file:
+            # Load existing data
+            data = json.load(file)
+            # Append new preferences
+            data.append(prefs_dict)
+            # Seek to the beginning of the file and overwrite with updated data
+            file.seek(0)
+            json.dump(data, file, indent=4)
+    except FileNotFoundError:
+        # If the file does not exist, create it and add the first preference
+        with open('preferences.json', 'w') as file:
+            json.dump([prefs_dict], file, indent=4)
+
     return {"message": "Data preferences saved successfully"}
 
-# Get preferences data
+# Endpoint to read all saved preferences
 @app.get("/preferencesData")
-def get_preferences_data():
-    return app.data_preferences
+def get_all_preferences():
+    try:
+        # Open the preferences file and read its content
+        with open('preferences.json', 'r') as file:
+            data = json.load(file)  # Load the JSON data from the file
+            return data  # Return the data as JSON response
+    except FileNotFoundError:
+        # If the file doesn't exist, raise a 404 error
+        raise HTTPException(status_code=404, detail="No preferences data found")
+    except json.JSONDecodeError:
+        # If the file is corrupted or invalid JSON, raise a 500 error
+        raise HTTPException(status_code=500, detail="Error reading preferences data")
