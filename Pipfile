@@ -6,6 +6,8 @@ name = "pypi"
 [packages]
 fastapi = "*"
 hypercorn = "*"
+boto3 = "*"
+bcrypt = "*"
 
 [dev-packages]
 
