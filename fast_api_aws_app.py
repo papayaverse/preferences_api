@@ -41,7 +41,7 @@ class DataPreferences(BaseModel):
     purpose: str
 
 # Initialize DynamoDB
-dynamodb = boto3.resource('dynamodb', region_name='us-east-1')  # Replace with your region
+dynamodb = boto3.resource('dynamodb', region_name='us-east-2')  # Replace with your region
 users_table = dynamodb.Table('Users')
 cookie_preferences_table = dynamodb.Table('CookiePreferences')
 data_preferences_table = dynamodb.Table('DataPreferences')

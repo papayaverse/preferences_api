@@ -1,1 +1,1 @@
-web: uvicorn fast_api_aws_app:app --host 0.0.0.0 --port 8000
+web: hypercorn fast_api_app:app --bind 0.0.0.0:8000
