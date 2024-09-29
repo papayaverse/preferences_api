@@ -1,1 +1,1 @@
-web: hypercorn fast_api_app:app --bind 0.0.0.0:8000
+web: hypercorn fast_api_app:app --bind 0.0.0.0:$PORT
