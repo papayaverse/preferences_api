@@ -8,6 +8,9 @@ from pydantic import BaseModel
 from typing import List
 import base64
 import json
+import boto3
+import bcrypt
+
 
 app = FastAPI()
 security = HTTPBasic()
