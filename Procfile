@@ -1,1 +1,1 @@
-web: hypercorn fast_api_app:app
+web: uvicorn fast_api_app:app --host 0.0.0.0 --port $PORT
