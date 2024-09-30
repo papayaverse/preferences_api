@@ -52,13 +52,23 @@ class DataPreferences(BaseModel):
     purpose: str
 
 # Initialize DynamoDB
-dynamodb = boto3.resource('dynamodb', region_name='us-east-2')  # Replace with your region
+#dynamodb = boto3.resource('dynamodb', region_name='us-east-2')  # Replace with your region
 
 app.users = {'ram@papayaverse.com' : User(firstname='Ram', lastname='Test', email='ram@papayaverse.com', password='password')}
 app.user_consent_preferences = {'ram@papayaverse.com' : {'default': ConsentPreferences(marketing=False, performance=True, sell_data=False)}}
 app.sessions = {}
 app.collected_data = {}
 app.data_preferences = []
+
+# Helper function to hash passwords
+def hash_password(password: str) -> str:
+    salt = bcrypt.gensalt()
+    hashed_password = bcrypt.hashpw(password.encode('utf-8'), salt)
+    return hashed_password.decode('utf-8')
+
+# Helper function to verify passwords
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 @app.get('/hello')
 def hello():
@@ -72,12 +82,14 @@ def hello_person(personName):
 @app.post("/createAccount")
 def sign_up(user: User):
     user_in_db = app.users.get(user.email)
+    hashed_password = hash_password(user.password)
     if user_in_db:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="User with this Email already exists",
         )
-    app.users[user.email] = user
+    new_user = User(firstname=user.firstname, lastname=user.lastname, email=user.email, password=hashed_password)
+    app.users[user.email] = new_user
     return {"message": f"User {user.email} registered successfully"}
 
 # Helper function to create a session in which we can store state about the user
@@ -89,7 +101,7 @@ def create_session(user_email: str):
 # Helper function to authenticate the User
 def authenticate_user(credentials: HTTPBasicCredentials = Depends(security)):
     user = app.users.get(credentials.username)
-    if user is None or user.password != credentials.password:
+    if user is None or (not verify_password(credentials.password, user.password)):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
