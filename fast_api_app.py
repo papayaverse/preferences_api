@@ -51,6 +51,9 @@ class DataPreferences(BaseModel):
     recipient: str
     purpose: str
 
+# Initialize DynamoDB
+dynamodb = boto3.resource('dynamodb', region_name='us-east-2')  # Replace with your region
+
 app.users = {'ram@papayaverse.com' : User(firstname='Ram', lastname='Test', email='ram@papayaverse.com', password='password')}
 app.user_consent_preferences = {'ram@papayaverse.com' : {'default': ConsentPreferences(marketing=False, performance=True, sell_data=False)}}
 app.sessions = {}
