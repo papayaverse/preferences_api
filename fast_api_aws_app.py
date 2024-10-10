@@ -3,8 +3,18 @@ from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.middleware.cors import CORSMiddleware
 import boto3
 from pydantic import BaseModel
-from typing import List
+from typing import List, Literal
 import bcrypt
+from botocore.exceptions import NoCredentialsError
+import os
+
+'''
+RUN FOR HEROKU-AWS INTEGRATION
+heroku config:set AWS_ACCESS_KEY_ID=<your-access-key-id>
+heroku config:set AWS_SECRET_ACCESS_KEY=<your-secret-access-key>
+heroku config:set AWS_REGION=<your-aws-region>
+heroku config:set S3_BUCKET_NAME=my-payback-data-bucket
+'''
 
 app = FastAPI()
 security = HTTPBasic()
@@ -24,27 +34,95 @@ app.add_middleware(
 )
 
 # Define Pydantic models
-class CookiePreferences(BaseModel):
-    marketing: bool
-    performance: bool
 
+# CookiePreferences
+'''
+{
+    "allow_marketing": true,
+    "allow_performance": true
+}
+'''
+class CookiePreferences(BaseModel):
+    allow_marketing: bool
+    allow_performance: bool
+
+# User
+'''
+{
+    "firstname": "John",
+    "lastname": "Doe",
+    "email": "johndoe@something.com",
+    "password": "password"
+'''
 class User(BaseModel):
     firstname: str
     lastname: str
     email: str
     password: str
 
+# DataPreferences
+'''
+{
+    "statement": "I am willing to share data with multiple options.",
+    "anonymity": "de-anonymized"
+    "recipient": ["advertisers", "retailers"],
+    "purpose": ["targeted advertising", "market research"]
+}
+'''
+
 class DataPreferences(BaseModel):
     statement: str
-    anonymity: str
-    recipient: str
-    purpose: str
+    anonymity: Literal["anonymized", "de-anonymized"]  # Only allows "anonymized" or "de-anonymized"
+    recipient: List[str]  # List of strings for multiple recipients
+    purpose: List[str]    # List of strings for multiple purposes
 
-# Initialize DynamoDB
-dynamodb = boto3.resource('dynamodb', region_name='us-east-2')  # Replace with your region
-users_table = dynamodb.Table('Users')
-cookie_preferences_table = dynamodb.Table('CookiePreferences')
-data_preferences_table = dynamodb.Table('DataPreferences')
+# Initialize S3 client
+s3 = boto3.client(
+    's3',
+    region_name=os.getenv('AWS_REGION'),
+    aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+    aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY')
+)
+BUCKET_NAME = os.getenv('S3_BUCKET_NAME')
+
+# Helper function to store dictionaries(JSON) in S3
+def upload_file_to_s3(file_name, file_content):
+    try:
+        s3.put_object(
+            Bucket=BUCKET_NAME,
+            Key=file_name,
+            Body=file_content,
+            ContentType='application/json'  # Set the appropriate content type
+        )
+        return {"message": f"File {file_name} uploaded successfully to S3"}
+    except NoCredentialsError:
+        raise HTTPException(status_code=500, detail="AWS credentials not configured")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+# Helper function to retrieve dictionaries(JSON) from S3
+def download_file_from_s3(file_name):
+    try:
+        response = s3.get_object(Bucket=BUCKET_NAME, Key=file_name)
+        file_content = response['Body'].read().decode('utf-8')
+        return file_content
+    except s3.exceptions.NoSuchKey:
+        raise HTTPException(status_code=404, detail="File not found in S3")
+    except NoCredentialsError:
+        raise HTTPException(status_code=500, detail="AWS credentials not configured")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+# Helper function to delete dictionaries(JSON) from S3
+def delete_file_from_s3(file_name):
+    try:
+        s3.delete_object(Bucket=BUCKET_NAME, Key=file_name)
+        return {"message": f"File {file_name} deleted successfully from S3"}
+    except NoCredentialsError:
+        raise HTTPException(status_code=500, detail="AWS credentials not configured")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 # Helper function to hash passwords
 def hash_password(password: str) -> str:
