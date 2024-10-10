@@ -7,6 +7,7 @@ from typing import List, Literal
 import bcrypt
 from botocore.exceptions import NoCredentialsError
 import os
+import json
 
 '''
 RUN FOR HEROKU-AWS INTEGRATION
@@ -32,6 +33,8 @@ app.add_middleware(
     allow_headers=["*"],  
     allow_credentials=True,
 )
+
+app.sessions = {}
 
 # Define Pydantic models
 
@@ -134,106 +137,70 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
-# Create Account Endpoint
+# SIGN UP ENDPOINT
 @app.post("/createAccount")
 def sign_up(user: User):
+    # Check if the user already exists in S3
     try:
-        # Check if user already exists
-        response = users_table.get_item(Key={'email': user.email})
-        if 'Item' in response:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="User with this email already exists",
-            )
+        download_file_from_s3(f'users/{user.email}.json')
+        # If no exception, the user already exists
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="User with this Email already exists",
+        )
+    except HTTPException as e:
+        if e.status_code != 404:
+            raise e  # Raise any other exceptions apart from 'not found'
+    
+    # Hash the password before storing
+    hashed_password = hash_password(user.password)
+    new_user = {
+        "firstname": user.firstname,
+        "lastname": user.lastname,
+        "email": user.email,
+        "password": hashed_password
+    }
+    
+    # Save the new user to S3
+    user_json = json.dumps(new_user)
+    upload_file_to_s3(f'users/{user.email}.json', user_json)
+    
+    return {"message": f"User {user.email} registered successfully"}
 
-        # Hash the password before storing
-        hashed_password = hash_password(user.password)
-
-        # Add user to DynamoDB
-        users_table.put_item(Item={
-            'email': user.email,
-            'firstname': user.firstname,
-            'lastname': user.lastname,
-            'password': hashed_password
-        })
-        return {"message": f"User {user.email} registered successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-# Helper function to authenticate the user
+# AUTHENTICATION HELPER
 def authenticate_user(credentials: HTTPBasicCredentials = Depends(security)):
+    # Retrieve the user data from S3
     try:
-        # Retrieve user credentials from the DynamoDB Users table
-        response = users_table.get_item(Key={'email': credentials.username})
-        user = response.get('Item')
-
-        if user is None or not verify_password(credentials.password, user['password']):
+        user_data_json = download_file_from_s3(f'users/{credentials.username}.json')
+        user_data = json.loads(user_data_json)
+    except HTTPException as e:
+        if e.status_code == 404:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password",
+                detail="Invalid credentials",
                 headers={"WWW-Authenticate": "Basic"},
             )
-        return user
-    except Exception as e:
+        else:
+            raise e
+    
+    # Verify password
+    if not verify_password(credentials.password, user_data["password"]):
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Authentication failed due to server error"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic"},
         )
+    return user_data
 
-# Set Cookie Preferences
-@app.post("/cookiePreferences/{site}")
-def set_cookie_preferences(site: str, consent: CookiePreferences, credentials: HTTPBasicCredentials = Depends(security)):
-    user = authenticate_user(credentials)
-    try:
-        # Update user cookie preferences in DynamoDB
-        response = cookie_preferences_table.update_item(
-            Key={'email': user['email']},
-            UpdateExpression="SET #site = :val",
-            ExpressionAttributeNames={"#site": site},
-            ExpressionAttributeValues={":val": consent.model_dump()},
-            ReturnValues="UPDATED_NEW"
-        )
-        return {"message": f"Cookie preferences set successfully for user {user['email']} for site {site}"}
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+# Helper function to create a session in which we can store state about the user
+def create_session(user_email: str):
+    session_id = str(len(app.sessions))
+    app.sessions[session_id] = {"user_email": user_email}
+    return session_id
 
-# Get Cookie Preferences
-@app.get("/cookiePreferences/{site}")
-def get_cookie_preferences(site: str, credentials: HTTPBasicCredentials = Depends(security)):
-    user = authenticate_user(credentials)
-    try:
-        response = cookie_preferences_table.get_item(Key={'email': user['email']})
-        if 'Item' not in response:
-            raise HTTPException(status_code=404, detail="No preferences data found for user")
-        return response['Item'].get(site, {})
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-# Set Data Preferences
-@app.post("/dataPreferences")
-def set_data_preferences(preferences: DataPreferences, credentials: HTTPBasicCredentials = Depends(security)):
-    user = authenticate_user(credentials)
-    try:
-        # Update user data preferences in DynamoDB
-        data_preferences_table.put_item(Item={
-            'email': user['email'],
-            'statement': preferences.statement,
-            'anonymity': preferences.anonymity,
-            'recipient': preferences.recipient,
-            'purpose': preferences.purpose
-        })
-        return {"message": "Data preferences set successfully"}
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
-
-# Get Data Preferences
-@app.get("/dataPreferences")
-def get_data_preferences(credentials: HTTPBasicCredentials = Depends(security)):
-    user = authenticate_user(credentials)
-    try:
-        response = data_preferences_table.get_item(Key={'email': user['email']})
-        if 'Item' not in response:
-            raise HTTPException(status_code=404, detail="No data preferences found for user")
-        return response['Item']
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
+# LOGIN ENDPOINT
+@app.post("/login")
+def login(user: User = Depends(authenticate_user)):
+    # Create a session for the authenticated user
+    session_id = create_session(user["email"])
+    return {"message": f"User {user['email']} Logged in successfully", "session_id": session_id}
