@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.middleware.cors import CORSMiddleware
 import boto3
@@ -8,6 +8,7 @@ import bcrypt
 from botocore.exceptions import NoCredentialsError
 import os
 import json
+import uuid
 
 '''
 RUN FOR HEROKU-AWS INTEGRATION
@@ -198,9 +199,38 @@ def create_session(user_email: str):
     app.sessions[session_id] = {"user_email": user_email}
     return session_id
 
+# Helper function to get user_id from the session
+def get_user_from_session(request: Request):
+    session_id = request.cookies.get("session_id")
+    if session_id and session_id in app.sessions:
+        return app.sessions[session_id]["user_email"]
+    return None
+
+def generate_anonymous_id():
+    return str(uuid.uuid4())
+
 # LOGIN ENDPOINT
 @app.post("/login")
 def login(user: User = Depends(authenticate_user)):
     # Create a session for the authenticated user
     session_id = create_session(user["email"])
     return {"message": f"User {user['email']} Logged in successfully", "session_id": session_id}
+
+# COLLECTING COOKIE PREFERENCES
+@app.post("/cookiePreferences")
+def set_cookie_preferences(
+    cookie_preferences: CookiePreferences,
+    request: Request
+):
+    # Get user_id from the session
+    user_id = get_user_from_session(request)
+
+    # If user is not logged in, generate an anonymous ID
+    identifier = user_id if user_id else generate_anonymous_id()
+
+    # Save preferences to S3
+    file_name = f'cookie_preferences/{identifier}.json'
+    preferences_json = json.dumps(cookie_preferences.model_dump())
+    upload_file_to_s3(file_name, preferences_json)
+    
+    return {"message": f"Cookie preferences saved successfully for {identifier}", "id": identifier}
