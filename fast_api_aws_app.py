@@ -11,10 +11,10 @@ import json
 
 '''
 RUN FOR HEROKU-AWS INTEGRATION
-heroku config:set AWS_ACCESS_KEY_ID=<your-access-key-id>
-heroku config:set AWS_SECRET_ACCESS_KEY=<your-secret-access-key>
-heroku config:set AWS_REGION=<your-aws-region>
-heroku config:set S3_BUCKET_NAME=my-payback-data-bucket
+heroku config:set AWS_ACCESS_KEY_ID=<>
+heroku config:set AWS_SECRET_ACCESS_KEY=<>
+heroku config:set AWS_REGION=<>
+heroku config:set S3_BUCKET_NAME=<>
 '''
 
 app = FastAPI()
