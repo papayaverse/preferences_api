@@ -219,14 +219,11 @@ def login(user: User = Depends(authenticate_user)):
 # COLLECTING COOKIE PREFERENCES
 @app.post("/cookiePreferences")
 def set_cookie_preferences(
-    cookie_preferences: CookiePreferences,
-    request: Request
+    cookie_preferences: CookiePreferences, 
+    identifier: str = None  # Optional parameter to associate with a logged-in user or anonymous ID
 ):
-    # Get user_id from the session
-    user_id = get_user_from_session(request)
-
-    # If user is not logged in, generate an anonymous ID
-    identifier = user_id if user_id else generate_anonymous_id()
+    # Use the provided identifier or generate an anonymous ID if not provided
+    identifier = identifier if identifier else generate_anonymous_id()
 
     # Save preferences to S3
     file_name = f'cookie_preferences/{identifier}.json'
@@ -234,3 +231,4 @@ def set_cookie_preferences(
     upload_file_to_s3(file_name, preferences_json)
     
     return {"message": f"Cookie preferences saved successfully for {identifier}", "id": identifier}
+
