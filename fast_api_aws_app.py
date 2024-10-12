@@ -225,11 +225,8 @@ def set_cookie_preferences(
     # Use the provided identifier or generate an anonymous ID if not provided
 
     #identifier = identifier if identifier else generate_anonymous_id()
-    if identifier is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Identifier not provided"
-        )
+    if identifier is None or identifier == "null" or identifier == "":
+        identifier = generate_anonymous_id()
     # Save preferences to S3
     file_name = f'cookie_preferences/{identifier}.json'
     preferences_json = json.dumps(cookie_preferences.model_dump())
