@@ -234,3 +234,20 @@ def set_cookie_preferences(
     
     return {"message": f"Cookie preferences saved successfully for {identifier}", "id": identifier}
 
+# COLLECTING DATA PREFERENCES
+@app.post("/dataPreferences")
+def set_data_preferences(
+    data_preferences: DataPreferences, 
+    identifier: str = None  # Optional parameter to associate with a logged-in user or anonymous ID
+):
+    # Use the provided identifier or generate an anonymous ID if not provided
+
+    #identifier = identifier if identifier else generate_anonymous_id()
+    if identifier is None or identifier == "null" or identifier == "":
+        identifier = generate_anonymous_id()
+    # Save preferences to S3
+    file_name = f'data_preferences/{identifier}.json'
+    preferences_json = json.dumps(data_preferences.model_dump())
+    upload_file_to_s3(file_name, preferences_json)
+    
+    return {"message": f"Data preferences saved successfully for {identifier}", "id": identifier}
