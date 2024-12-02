@@ -85,7 +85,7 @@ class DataBrowsing(BaseModel):
     url: str
     website: str
     title: str
-    browseDate: date
+    browseDate: str
 
 # Initialize S3 client
 s3 = boto3.client(
