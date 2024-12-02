@@ -9,6 +9,7 @@ from botocore.exceptions import NoCredentialsError
 import os
 import json
 import uuid
+from datetime import date, datetime, time, timedelta
 
 '''
 RUN FOR HEROKU-AWS INTEGRATION
@@ -79,6 +80,12 @@ class DataPreferences(BaseModel):
     anonymity: Literal["anonymized", "de-anonymized"]  # Only allows "anonymized" or "de-anonymized"
     recipient: List[str]  # List of strings for multiple recipients
     purpose: List[str]    # List of strings for multiple purposes
+
+class DataBrowsing(BaseModel):
+    url: str
+    website: str
+    title: str
+    browseDate: date
 
 # Initialize S3 client
 s3 = boto3.client(
@@ -251,3 +258,21 @@ def set_data_preferences(
     upload_file_to_s3(file_name, preferences_json)
     
     return {"message": f"Data preferences saved successfully for {identifier}", "id": identifier}
+
+# COLLECTING DATA PREFERENCES
+@app.post("/dataBrowsing")
+def set_data_browsing(
+    data: DataBrowsing, 
+    identifier: str = None  # Optional parameter to associate with a logged-in user or anonymous ID
+):
+    # Use the provided identifier or generate an anonymous ID if not provided
+
+    #identifier = identifier if identifier else generate_anonymous_id()
+    if identifier is None or identifier == "null" or identifier == "":
+        identifier = generate_anonymous_id()
+    file_identifier = generate_anonymous_id()
+    # Save preferences to S3
+    file_name = f'data_browsing/{identifier}/{file_identifier}.json'
+    data_json = json.dumps(data.model_dump())
+    upload_file_to_s3(file_name, data_json)
+    return {"message": f"Data browsing saved successfully for {identifier}", "id": identifier}
