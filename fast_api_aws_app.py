@@ -87,6 +87,11 @@ class DataBrowsing(BaseModel):
     title: str
     browseDate: str
 
+class BannerData(BaseModel):
+    domain: str
+    external_buttons: object
+    internal_buttons: list
+
 # Initialize S3 client
 s3 = boto3.client(
     's3',
