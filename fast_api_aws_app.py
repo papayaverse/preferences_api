@@ -89,6 +89,8 @@ class DataBrowsing(BaseModel):
 
 class BannerData(BaseModel):
     domain: str
+    external_banner_id: str
+    internal_banner_id: str
     external_buttons: object
     internal_buttons: list
 
@@ -281,3 +283,21 @@ def set_data_browsing(
     data_json = json.dumps(data.model_dump())
     upload_file_to_s3(file_name, data_json)
     return {"message": f"Data browsing saved successfully for {identifier}", "id": identifier}
+
+# COLLECTING DATA PREFERENCES
+@app.post("/bannerData")
+def set_data_banner(
+    data: BannerData, 
+    identifier: str = None  # Optional parameter to associate with a logged-in user or anonymous ID
+):
+    # Use the provided identifier or generate an anonymous ID if not provided
+
+    #identifier = identifier if identifier else generate_anonymous_id()
+    if identifier is None or identifier == "null" or identifier == "":
+        identifier = generate_anonymous_id()
+    file_identifier = generate_anonymous_id()
+    # Save file to S3
+    file_name = f'data_banners/{identifier}/{file_identifier}.json'
+    data_json = json.dumps(data.model_dump())
+    upload_file_to_s3(file_name, data_json)
+    return {"message": f"Data on banners saved successfully for {identifier}", "id": identifier}
